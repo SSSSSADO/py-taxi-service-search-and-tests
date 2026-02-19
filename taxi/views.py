@@ -6,7 +6,14 @@ from django.views import generic
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 from .models import Driver, Car, Manufacturer
-from .forms import DriverCreationForm, DriverLicenseUpdateForm, CarForm, DriversSearchForm
+from .forms import (
+    DriverCreationForm,
+    DriverLicenseUpdateForm,
+    CarForm,
+    DriversSearchForm,
+    ManufacturerSearchForm,
+    CarsSearchForm
+)
 
 
 @login_required
@@ -37,13 +44,16 @@ class ManufacturerListView(LoginRequiredMixin, generic.ListView):
     paginate_by = 5
 
     def get_queryset(self):
-        name = super().get_queryset()
-        queryset = self.request.GET.get("name", "")
+        queryset = super().get_queryset()
+        name = self.request.GET.get("name", "")
         if name:
-            queryset = queryset.filter(
-                name__icontains=name
-            )
+            queryset = queryset.filter(name__icontains=name)
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["search_form"] = ManufacturerSearchForm(self.request.GET)
+        return context
 
 
 class ManufacturerCreateView(LoginRequiredMixin, generic.CreateView):
@@ -77,6 +87,11 @@ class CarListView(LoginRequiredMixin, generic.ListView):
             )
         return queryset
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["search_form"] = CarsSearchForm(self.request.GET)
+        return context
+
 
 class CarDetailView(LoginRequiredMixin, generic.DetailView):
     model = Car
@@ -103,7 +118,7 @@ class DriverListView(LoginRequiredMixin, generic.ListView):
     model = Driver
     paginate_by = 5
 
-    def queryset(self):
+    def get_queryset(self):
         queryset = super().get_queryset()
         form = DriversSearchForm(self.request.GET)
         if form.is_valid():
@@ -136,14 +151,14 @@ class DriverLicenseUpdateView(LoginRequiredMixin, generic.UpdateView):
 
 class DriverDeleteView(LoginRequiredMixin, generic.DeleteView):
     model = Driver
-    success_url = reverse_lazy("")
+    success_url = reverse_lazy("taxi:driver-list")
 
 
 @login_required
 def toggle_assign_to_car(request, pk):
     driver = Driver.objects.get(id=request.user.id)
     if (
-        Car.objects.get(id=pk) in driver.cars.all()
+            Car.objects.get(id=pk) in driver.cars.all()
     ):  # probably could check if car exists
         driver.cars.remove(pk)
     else:
